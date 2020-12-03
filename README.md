@@ -1,4 +1,4 @@
 # login_template_tkinter
 A login template made with tkinter in python
 
-new updates will be there soon
+It uses SQLite3 to create a local database and stores data in it. The passwords are hashed before storing
