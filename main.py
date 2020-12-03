@@ -1,6 +1,26 @@
 from tkinter import *
 import csv
 import re
+import sqlite3
+import config
+import os
+import hashlib
+from time import sleep
+
+dbLoc = "database.db" #location of the database file
+conn = sqlite3.connect(dbLoc)
+try:
+    conn.execute("""
+    create table userData(
+        usid integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        name TEXT,
+        usnm TEXT,
+        pswd TEXT,
+        mail TEXT
+    );
+    """)
+except:
+    pass
 
 def main():
     global root
@@ -91,9 +111,10 @@ def signup_clear():
     signup_but.destroy()
     wrpas.destroy()
 
-def after_sign_in(name,mail,user):
+def after_sign_in(id,name,mail,user):
     global wrpas
     signin_clear()
+    warn(" ","green")
     y_cor = 50
     lis = ["Welcome "+user,"Your name: "+name,"Your email id: "+mail]
     for data in lis:
@@ -101,61 +122,55 @@ def after_sign_in(name,mail,user):
         wrpas.config(font=('',15,"bold"))
         wrpas.place(x=25,y=y_cor,in_=root)
         y_cor+=50
+    print("userid:",id)
             
 
 def search():
     global wrpas
-    data_b = open("Database.rpd","r")
-    read_data = csv.reader(data_b)
-    ch = 0
-    user = uent.get()
-    pasd = pent.get()
-    for row in read_data:
-        name, username, password,email = row
-        una = str(user.lower())
-        eml = str(username.lower())
-        if(una == eml):
-            if(pasd == password):
-                print("Welcome",name,email)
-                after_sign_in(name, email, username)
-            else:
-                wrpas = Label(root,text='wrong password',foreground='red')
-                wrpas.config(font=('Times',10))
-                wrpas.place(x=75,y=200,in_=root)
-            ch = 1
-            break    
-    if(ch == 0):
+    ch=True
+    user = uent.get()#username
+    pasd = pent.get()#password
+    cursor = conn.execute("select * from userData where usnm = '"+user+"'")
+    for i in cursor:
+        ch = False
+        hash_pswd = (hashlib.md5((pasd+"314159265358979323846264338327").encode())).hexdigest()
+        if(hash_pswd == i[3]):
+            after_sign_in(i[0],i[1], i[4], i[2])#good sign in
+            return 0
+        else:
+            wrpas = Label(root,text='wrong password',foreground='red')#bad sign in
+            wrpas.config(font=('Times',10))#bad sign in
+            wrpas.place(x=75,y=200,in_=root)#bad sign in
+    if(ch):
         wrpas = Label(root,text='not found             ',foreground='red')
         wrpas.config(font=('Times',10))
         wrpas.place(x=75,y=200,in_=root)
                 
-    data_b.close()            
 
 def warn(string,col):
     global wrpas
+    string += " "*500
     wrpas = Label(root,text=string,foreground=col)
     wrpas.config(font=('Times',10))
     wrpas.place(x=75,y=225,in_=root)
         
 def taken_check(user,mail_id):
-    global ch
     ch = 0
-    with open("Database.rpd","r") as db:
-        data_read = csv.reader(db)
-        for row in data_read:
-            n, username, p,email = row
-            if(user == username):
-                print(user,username)
-                ch = 1
-            elif(mail_id.lower() == email.lower()):
-                ch = 2
+    cur_user = conn.execute("select * from userData where usnm = '"+user+"'")
+    cur_mail = conn.execute("select * from userData where mail = '"+mail_id+"'")
+    for i in cur_user:
+        if(str(i[2].lower()) == str(user.lower().replace(" ",""))):
+            ch = 1
+    for i in cur_mail:
+        if(i[4].lower() == mail_id.lower().replace(" ","")):
+            ch = 2
     return ch
             
-def write_csv(list_data):
-    with open("Database.rpd","a") as db:
-        data_write = csv.writer(db)
-        data_write.writerow(list_data)
-def login(): 
+def write_db(list_data):
+    hash_pswd = (hashlib.md5((str(list_data[2])+"314159265358979323846264338327").encode())).hexdigest()
+    conn.execute("insert into userData (name,usnm,pswd,mail) values ('"+list_data[0]+"','"+list_data[1]+"','"+hash_pswd+"','"+list_data[3]+"');")
+    conn.commit()
+def login():
     uname_ent = un_ent.get()
     mail_ent = em_ent.get()
     pass_ent = pa_ent.get()
@@ -180,19 +195,18 @@ def login():
         warn("please enter a name        ","red")
     else:
         warn(uname_ent+" sign up successful","green")
-        #ent_list = [name_ent+','+uname_ent+','+pass_ent+','+mail_ent]
         ent_list = [name_ent,uname_ent,pass_ent,mail_ent]
         print(ent_list)
         
-        write_csv(ent_list)
+        write_db(ent_list)
         main()
         warn("sign in was successful!","green")
     
 def signup():
     global wrpas, logo, logoimg
     global login_un, login_pa, login_em, login_cp, login_na ,un_ent,na_ent,pa_ent,em_ent,cp_ent, back_but, signup_but
-    root.title("Login")
-    
+    root.title("Sign Up")
+    warn(" ","green")
     signin_clear()
     
     logo = PhotoImage(file = 'images/logo.png')
